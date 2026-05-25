@@ -14,7 +14,7 @@
 * **解読**: 画面・SQL・業務ロジックが混在したコードの課題特定
 * **分離**: UI、Service、Repository、データアクセス層への構造分離
 * **刷新**: .NET 8 Web API と React による最新スタックへの移行
-* **品質**: テスタビリティの確保と CI による自動テストの導入
+* **品質**: テスタビリティの確保と単体テストの導入
 
 ---
 
@@ -80,7 +80,7 @@
 | **Frontend** | React, TypeScript, Vite, Tailwind CSS |
 | **Backend** | .NET 8 (Minimal API), xUnit |
 | **Database** | PostgreSQL / SQLite (EF Core / Dapper) |
-| **Infrastructure** | Docker Compose, Cloudflare Tunnel, GitHub Actions |
+| **Infrastructure** | Docker Compose, Cloudflare Tunnel |
 
 ---
 
@@ -94,7 +94,7 @@
 2. **環境の抽象化 (IaC)**: Terraform を用い、特定のサーバー環境への依存を排除。
 3. **ポータビリティ (Docker)**: 「Windows でしか動かない」制約を破壊し、クラウドへの道を確保。
 4. **セーフティネット (Unit Test)**: 既存機能を壊さずにリファクタリングするための武器を装備。
-5. **リリースの自動化 (CI/CD)**: 継続的なデリバリーを自動で行う「工場の自動運転化」を実現。
+5. **検証容易性の確保**: Service 層と単体テストにより、変更時の影響を確認しやすくする。
 
 > [!TIP]
 > **Focus & Scope**
