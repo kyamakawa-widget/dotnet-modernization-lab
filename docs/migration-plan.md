@@ -49,7 +49,7 @@
 | Swagger 有効化 | `AddSwaggerGen()` + `UseSwaggerUI()` で API 仕様を常時公開 |
 | CORS 設定 | `AllowedOrigins` を設定ファイル駆動に（`AllowAnyOrigin` を廃止） |
 
-**検証**: Swagger UI（`/swagger`）で全エンドポイントの動作確認
+**検証**: Swagger UI（`/api-docs`）で全エンドポイントの動作確認
 
 ---
 

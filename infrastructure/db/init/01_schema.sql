@@ -1,7 +1,7 @@
 -- カテゴリマスタ
 CREATE TABLE IF NOT EXISTS M_Category (
     CategoryId SERIAL PRIMARY KEY,
-    CategoryName VARCHAR(100) NOT NULL,
+    CategoryName VARCHAR(100) NOT NULL UNIQUE,
     DeleteFlg INT DEFAULT 0
 );
 -- 在庫マスタ
