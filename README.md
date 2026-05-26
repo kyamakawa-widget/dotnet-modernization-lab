@@ -100,6 +100,7 @@
 3. **ポータビリティ (Docker)**: 「Windows でしか動かない」制約を破壊し、クラウドへの道を確保。
 4. **セーフティネット (Unit Test)**: 既存機能を壊さずにリファクタリングするための武器を装備。
 5. **検証容易性の確保**: Service 層と単体テストにより、変更時の影響を確認しやすくする。
+6. **CI/CDのパイプライン化 (GitHub Actions)**: 自動でビルド・テストを実行し、品質を継続的に担保する仕組みを導入。
 
 > **Focus & Scope**  
 > 本プロジェクトは **「レガシー資産の解体と構造分離」** に特化しています。  
@@ -115,13 +116,21 @@
 
 ```
 .
-├── legacy/            # Before: WinForms風の密結合サンプル
-├── src/
-│   ├── Api/           # .NET 8 Web API (Service / Repository)
-│   ├── Api.Tests/     # API / Service層の単体テスト
-│   └── Web/           # React Frontend
+├── .github/
+│   └── workflows/           # CI/CD パイプライン定義（GitHub Actions: 自動ビルド・テスト等）
 ├── docs/
-│   ├── architecture.md   # アーキテクチャ図（Mermaid）
-│   └── migration-plan.md # 移行フェーズ定義
-└── docker-compose.yml
+│   ├── architecture.md      # アーキテクチャ図（Mermaid）
+│   └── migration-plan.md    # 移行フェーズ定義
+├── infrastructure/          # IaC・インフラストラクチャ定義
+│   ├── db/init/             # データベース初期化用SQL（01_schema.sql等）
+│   ├── main.tf              # Terraform定義ファイル（AWS等の環境構築用）
+│   └── ci.sh 等             # CI/デプロイ支援スクリプト
+├── legacy/
+│   └── LegacyWinFormsApp/   # Before: 既存の密結合なWinForms業務アプリのサンプルコード
+├── src/
+│   ├── Api/                 # After: .NET 8 Web API (Backend / Minimal API)
+│   ├── Api.Tests/           # xUnitによるAPIおよびService層の単体テスト
+│   └── Web/                 # After: React Frontend (Vite / TypeScript / Tailwind CSS)
+├── docker-compose.yml       # ローカル開発・検証用のコンテナ構成定義
+└── README.md                # 本ドキュメント
 ```
