@@ -34,7 +34,7 @@
 | 取消処理の分離 | 削除 + 在庫復元 → `OrderService.DeleteOrderAsync()` へ移管 |
 | 単体テスト追加 | `Calculate()` を対象に境界値テスト 7 ケース実装（DB 不要） |
 
-**検証**: `dotnet test` がすべてパス
+**検証**: `dotnet test` がパス（対象: `Calculate()` の境界値テスト 7 ケース）
 
 ---
 
