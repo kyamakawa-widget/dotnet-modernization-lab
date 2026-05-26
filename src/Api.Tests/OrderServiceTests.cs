@@ -5,16 +5,16 @@ namespace CloudNativeApp.Tests;
 
 public class OrderServiceTests
 {
-    private static orderservice makeservice()
-{
-    var config = new configurationbuilder()
-        .addinmemorycollection(new dictionary<string, string?>
-        {
-            ["connectionstrings:defaultconnection"] = "host=test"
-        })
-        .build();
-    return new orderservice(config, new taxservice());
-}
+    private static OrderService MakeService()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = "Host=test"
+            })
+            .Build();
+        return new OrderService(config, new TaxService());
+    }
 
     [Theory]
     [InlineData(1000,   1,   1000,  100,   1100, false)]
@@ -51,8 +51,8 @@ public class OrderServiceTests
         var svc = MakeService();
         var result = svc.Calculate(3, 1);
 
-        Assert.Equal(0m,  result.TaxAmount);
-        Assert.Equal(3m,  result.TotalAmount);
+        Assert.Equal(0m, result.TaxAmount);
+        Assert.Equal(3m, result.TotalAmount);
     }
 
     [Fact]
