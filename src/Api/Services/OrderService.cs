@@ -111,12 +111,11 @@ public class OrderService
         }
     }
 
-    // ★ 削除時の在庫計算を安全に行うための専用クラス
     private class StockInfo
-    {
-        public string itemname { get; set; }
-        public int qty { get; set; }
-    }
+{
+    public string itemname { get; set; } = string.Empty;
+    public int qty { get; set; }
+}
 
     // 3. 受注取消（dynamicを廃止し、StockInfo型を使用）
     public async Task<bool> DeleteOrderAsync(string orderNo)

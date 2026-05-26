@@ -22,7 +22,7 @@
 
 ## 2. Before: レガシーな密結合の実態
 
-`legacy/OrderForm.cs` では、古い業務アプリに典型的な「1つのクラスがすべてを知りすぎている」状態を再現しています。
+`legacy/LegacyWinFormsApp/` では、古い業務アプリに典型的な「1つのクラスがすべてを知りすぎている」状態を再現しています。
 
 ### 構成イメージ
 
@@ -64,7 +64,8 @@
 
 1. **Frontend (React/TypeScript)**: 状態管理と UI 表示に専念。
 2. **Backend (ASP.NET Core)**: 業務ロジック（Service 層）とデータアクセスを隠蔽。
-3. **Database**: 疎結合なアクセス（Entity Framework Core / Dapper）。
+3. **Database**: 疎結合なアクセス（Dapper）。
+4. **Object Storage**: AWS S3 互換の LocalStack をローカル環境で使用。
 
 ### 移行アプローチ
 
@@ -72,6 +73,15 @@
 - **Service 層の導入**: 税計算や在庫確認を独立したクラスへ切り出し、単体テストを可能にする。
 - **安全なデータアクセス**: パラメータ化クエリ（Dapper）を使用。
 - **ポータビリティ**: Docker 化により、実行環境に依存しないデプロイを実現。
+
+### 実装された主な API エンドポイント
+
+| Method | Path | 説明 |
+| ------ | ---- | ---- |
+| GET | `/categories` | カテゴリマスタ取得 |
+| GET | `/orders` | 受注履歴一覧取得 |
+| POST | `/orders` | 受注登録（在庫更新をトランザクション内で実行） |
+| DELETE | `/orders/{orderNo}` | 受注取消（在庫自動復元をトランザクション内で実行） |
 
 ### 実装された主な新機能
 
@@ -86,29 +96,30 @@
 | ------------------ | -------------------------------------- |
 | **Frontend**       | React, TypeScript, Vite, Tailwind CSS  |
 | **Backend**        | .NET 8 (Minimal API), xUnit            |
-| **Database**       | PostgreSQL / SQLite (EF Core / Dapper) |
-| **Infrastructure** | Docker Compose, Cloudflare Tunnel      |
+| **Database**       | PostgreSQL (Dapper)                    |
+| **Object Storage** | LocalStack (AWS S3 互換)               |
+| **Infrastructure** | Docker Compose, Terraform, Cloudflare Tunnel |
 
 ---
 
 ## 5. モダナイゼーションの方針
 
-本プロジェクトでは、単なるコード書き換えではなく、以下の 5 つの柱を軸に「開発プロセス」を近代化します。
+本プロジェクトでは、単なるコード書き換えではなく、以下の 6 つの柱を軸に「開発プロセス」を移行を実践します。
 
 1. **ロジックの軽量抽出 (Minimal API)**: 巨大な `code-behind` を疎結合な Web API へ分解。
 2. **環境の抽象化 (IaC)**: Terraform を用い、特定のサーバー環境への依存を排除。
 3. **ポータビリティ (Docker)**: 「Windows でしか動かない」制約を破壊し、クラウドへの道を確保。
 4. **セーフティネット (Unit Test)**: 既存機能を壊さずにリファクタリングするための武器を装備。
 5. **検証容易性の確保**: Service 層と単体テストにより、変更時の影響を確認しやすくする。
-6. **CI/CDのパイプライン化 (GitHub Actions)**: 自動でビルド・テストを実行し、品質を継続的に担保する仕組みを導入。
+6. **CI/CD のパイプライン化 (GitHub Actions)**: 自動でビルド・テストを実行し、品質を継続的に担保する仕組みを導入。
 
 > **Focus & Scope**  
 > 本プロジェクトは **「レガシー資産の解体と構造分離」** に特化しています。  
 > 「認証・認可 (Auth0 等)」や「本番用 DB の冗長化構成」などは **対象外 (Out-of-Scope)** としています。
 
-> **インフラ補足**: デモは Cloudflare Tunnel（一時 URL）で公開。
-> 本番想定では Cloudflare Zero Trust による独自ドメイン＋アクセス制御、
-> または Terraform 定義を AWS (ECS/RDS) へ拡張してデプロイ。
+> **インフラ補足**: デモは Cloudflare Tunnel（一時 URL）で公開。  
+> 本番想定では Cloudflare Zero Trust による独自ドメイン＋アクセス制御、  
+> または Terraform 定義を AWS (ECS/RDS/S3) へ拡張してデプロイ。
 
 ---
 
@@ -117,20 +128,22 @@
 ```
 .
 ├── .github/
-│   └── workflows/           # CI/CD パイプライン定義（GitHub Actions: 自動ビルド・テスト等）
+│   └── workflows/               # CI/CD パイプライン定義（GitHub Actions: 自動ビルド・テスト）
 ├── docs/
-│   ├── architecture.md      # アーキテクチャ図（Mermaid）
-│   └── migration-plan.md    # 移行フェーズ定義
-├── infrastructure/          # IaC・インフラストラクチャ定義
-│   ├── db/init/             # データベース初期化用SQL（01_schema.sql等）
-│   ├── main.tf              # Terraform定義ファイル（AWS等の環境構築用）
-│   └── ci.sh 等             # CI/デプロイ支援スクリプト
+│   ├── architecture.md          # アーキテクチャ図（Mermaid）
+│   └── migration-plan.md        # 移行フェーズ定義
+├── infrastructure/              # IaC・インフラストラクチャ定義
+│   ├── db/init/
+│   │   └── 01_schema.sql        # データベース初期化用 SQL
+│   ├── main.tf                  # Terraform 定義（AWS ECS/RDS/S3 等の環境構築用）
+│   ├── ci.sh                    # CI/デプロイ支援スクリプト
+│   └── webhook_listener.py      # Webhook 受信・処理スクリプト
 ├── legacy/
-│   └── LegacyWinFormsApp/   # Before: 既存の密結合なWinForms業務アプリのサンプルコード
+│   └── LegacyWinFormsApp/       # Before: 密結合な WinForms 業務アプリのサンプルコード
 ├── src/
-│   ├── Api/                 # After: .NET 8 Web API (Backend / Minimal API)
-│   ├── Api.Tests/           # xUnitによるAPIおよびService層の単体テスト
-│   └── Web/                 # After: React Frontend (Vite / TypeScript / Tailwind CSS)
-├── docker-compose.yml       # ローカル開発・検証用のコンテナ構成定義
-└── README.md                # 本ドキュメント
+│   ├── Api/                     # After: .NET 8 Web API (Minimal API / Service 層)
+│   ├── Api.Tests/               # xUnit による Service 層の単体テスト
+│   └── Web/                     # After: React Frontend (Vite / TypeScript / Tailwind CSS)
+├── docker-compose.yml           # ローカル開発用コンテナ構成（API / PostgreSQL / LocalStack）
+└── README.md                    # 本ドキュメント
 ```
