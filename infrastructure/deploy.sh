@@ -15,6 +15,10 @@ echo "==> [3/5] rsync API"
 rsync -az --delete \
   -e "ssh -o ClearAllForwardings=yes" \
   --exclude='appsettings*.json' \
+  --exclude='wwwroot/' \
+  --exclude='agent/' \
+  --exclude='agent-venv/' \
+  --exclude='agent.env' \
   "$PUBLISH_DIR/" \
   "$VPS:$VPS_APP_DIR/"
 echo "==> [4/5] rsync frontend"
@@ -23,11 +27,11 @@ rsync -az --delete \
   src/Web/dist/ \
   "$VPS:$VPS_APP_DIR/wwwroot/"
 echo "==> [5/5] rsync Agent"
-rsync -az --delete \
+rsync -az \
   -e "ssh -o ClearAllForwardings=yes" \
   --exclude='.env' \
-  --exclude='.venv/' \
-  --exclude='__pycache__/' \
+  --exclude='.venv' \
+  --exclude='__pycache__' \
   --exclude='*.pyc' \
   src/Agent/ \
   "$VPS:$VPS_APP_DIR/agent/"
