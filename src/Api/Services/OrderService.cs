@@ -1,3 +1,5 @@
+using Amazon.S3;
+using Amazon.S3.Model;
 using Dapper;
 using Npgsql;
 using System.Text;
@@ -47,13 +49,17 @@ public class OrderService
 {
     private readonly string _connectionString;
     private readonly TaxService _taxService;
+    private readonly IAmazonS3? _s3;
+    private readonly string _bucketName;
 
-    public OrderService(IConfiguration config, TaxService taxService)
+    public OrderService(IConfiguration config, TaxService taxService, IAmazonS3? s3)
     {
         _connectionString = config.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException(
                 "ConnectionStrings:DefaultConnection が設定されていません。");
         _taxService = taxService;
+        _s3 = s3;
+        _bucketName = config["AWS:BucketName"] ?? "order-exports";
     }
 
     public OrderSummary Calculate(decimal price, int qty)
@@ -132,7 +138,29 @@ public class OrderService
             sb.AppendLine($"{o.orderNo},{o.orderDate:yyyy-MM-dd HH:mm:ss},{o.customerName},{o.itemName},{o.categoryName},{o.price},{o.qty},{o.totalAmount}");
         }
         // UTF-8 BOM付き（Excelで文字化けしない）
-        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        var csvBytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+
+        if (_s3 != null)
+        {
+            try
+            {
+                var key = $"exports/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}.csv";
+                using var ms = new MemoryStream(csvBytes);
+                await _s3.PutObjectAsync(new PutObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = key,
+                    InputStream = ms,
+                    ContentType = "text/csv"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[S3] upload failed: {ex.Message}");
+            }
+        }
+
+        return csvBytes;
     }
 
     public async Task<bool> RegisterOrderAsync(CreateOrderRequest req)
