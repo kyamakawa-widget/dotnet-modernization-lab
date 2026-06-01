@@ -8,6 +8,42 @@
 
 ---
 
+## クイックスタート
+
+### 前提
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- .NET SDK 8.0（ローカル開発時）
+- Node.js 20+（ローカル開発時）
+
+### フル起動（Docker のみ）
+
+```bash
+cp .env.example .env  # GEMINI_API_KEY を記入
+docker compose up -d --build
+```
+
+- Frontend + API: http://localhost:5153
+- Swagger UI: http://localhost:5153/api-docs
+- Python Agent: http://localhost:8001
+
+### ローカル開発（HMR あり）
+
+```bash
+# 1. DB のみ起動
+docker compose up db -d
+
+# 2. バックエンド（別ターミナル）
+cd src/Api && dotnet run
+
+# 3. フロントエンド（別ターミナル）
+cd src/Web && npm ci && npm run dev
+```
+
+- API: http://localhost:5153
+- Frontend (Vite HMR): http://localhost:5173
+
+---
+
 ## 1. 概要とゴール
 
 本プロジェクトの目的は、単なる画面の作り替えではなく、**「密結合なレガシーコードをいかに解体し、モダンなアーキテクチャへ再構成するか」** のプロセスを提示することにある。
@@ -123,7 +159,7 @@ OrderService（DBアクセス・トランザクション管理）
 |---|---|---|
 | GET | `/categories` | カテゴリマスタ取得 |
 | GET | `/orders` | 受注履歴一覧（得意先名・商品名・カテゴリ・期間でフィルタ可） |
-| GET | `/orders/export` | 受注履歴 CSV エクスポート（フィルタ条件を引き継ぎ・UTF-8 BOM） |
+| GET | `/orders/export` | 受注履歴 CSV エクスポート（フィルタ条件を引き継ぎ・UTF-8 BOM・S3 アーカイブ保存） |
 | POST | `/orders` | 受注登録（在庫更新をトランザクション内で実行） |
 | DELETE | `/orders/{orderNo}` | 受注取消（在庫自動復元をトランザクション内で実行） |
 
@@ -181,11 +217,14 @@ src/Agent/
 ├── schema_prompt.py  # DB スキーマをプロンプト文字列で定義
 ├── db.py             # PostgreSQL 接続（psycopg2）
 ├── requirements.txt
+├── requirements-dev.txt
+├── tests/            # pytest（36 ケース・LLM/DB はモック）
 └── Dockerfile
 ```
 
 ### 主な設計判断
 
+- **LangGraph を採用**: ノード単位で状態を明示管理することで、エラー発生時の追跡性（どのプロンプトが原因かの特定）と、将来的なモデル改善サイクルへの発展性を確保。なお実際の改善サイクル運用は本プロジェクトのスコープ外。
 - **LLM は Gemini API**: 低コストでデモ環境を継続稼働できる。
 - **Text-to-SQL（RAG ではない）**: 対象が構造化された PostgreSQL スキーマのため、ベクトル検索より SQL 生成が適切。
 - **SELECT 文のみ許可**: `validate_sql` ノードで DDL/DML を弾き、DB への副作用を排除。
@@ -220,9 +259,9 @@ src/Agent/
 
 1. **ロジックの軽量抽出 (Minimal API)**: 巨大な `OrderForm.cs` を疎結合な Web API へ分解。
 2. **環境の抽象化 (IaC)**: Terraform を用い、特定のサーバー環境への依存を排除。
-3. **ポータビリティ (Docker)**: 「Windows でしか動かない」制約を破壊し、クラウドへの道を確保。
-4. **セーフティネット (Unit Test)**: 既存機能を壊さずにリファクタリングするための武器を装備。
-5. **CI/CD のパイプライン化 (GitHub Actions)**: push ごとにビルド・テストを自動実行し、品質を継続的に担保。
+3. **ポータビリティ (Docker)**: 「Windows でしか動かない」制約を破壊し、クラウドへの道を確保。LocalStack によるストレージの事前検証も同一スタック内で完結する。
+4. **セーフティネット (Unit Test)**: 既存機能を壊さずにリファクタリングするための武器を装備。xUnit（.NET 境界値 7 ケース）と pytest（Agent 36 ケース）で両レイヤーをカバー。
+5. **CI/CD のパイプライン化 (GitHub Actions)**: push ごとにビルド・テスト（.NET・React・Python Agent）を自動実行し、品質を継続的に担保。
 6. **AI 統合の容易化**: 責務分離が完了した構造では、AI サービスを独立したコンポーネントとして追加できる。業務ロジックに手を入れることなく自然言語インターフェースを統合したことがその実証。
 
 > **Focus & Scope**  
@@ -280,7 +319,7 @@ graph LR
 .
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                        # CI（.NET テスト + React ビルド）
+│       └── ci.yml                        # CI（.NET テスト・React ビルド・Python Agent テスト）
 ├── docs/
 │   └── design.md                         # UI デザイン方針（カラー・コンポーネント規則）
 ├── infrastructure/
@@ -290,6 +329,9 @@ graph LR
 │   │   └── seed/
 │   │       ├── generate_seed.py          # サンプルデータ生成スクリプト
 │   │       └── 02_seed.sql               # 生成済みサンプルデータ（400件・6ヶ月分）
+│   ├── localstack/
+│   │   └── init/
+│   │       └── 01_create_bucket.sh       # LocalStack 起動後にバケットを自動作成
 │   ├── agent-setup.sh                    # VPS 初回セットアップ（venv 構築・systemd 登録）
 │   ├── deploy.sh                         # WSL → VPS デプロイ（ビルド・転送・再起動）
 │   ├── db-init.sh                        # DB 初期化（初回のみ）
@@ -307,6 +349,8 @@ graph LR
 │   │   ├── schema_prompt.py
 │   │   ├── db.py
 │   │   ├── requirements.txt
+│   │   ├── requirements-dev.txt
+│   │   ├── tests/                        # pytest（36 ケース・LLM/DB はモック）
 │   │   └── Dockerfile
 │   ├── Api/                              # After: .NET 8 Minimal API
 │   │   ├── Endpoints/
